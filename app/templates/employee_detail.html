@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Detail - {{ employee.full_name }}{% endblock %}
+{% block page_title %}Human Resources / Profile View{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Employee Info Column -->
+    <div class="col-lg-4">
+        <div class="card bg-secondary border-secondary text-white rounded-4 p-4 shadow-sm h-100">
+            <div class="text-center mb-4">
+                {% if employee.photo %}
+                <img src="{{ url_for('main.uploaded_file', filename=employee.photo) }}" alt="{{ employee.full_name }}" class="rounded-4 border mb-3 shadow-sm" style="width: 140px; height: 140px; object-fit: cover; border-color: var(--border-color) !important;">
+                {% else %}
+                <div class="avatar-placeholder avatar-placeholder-lg mx-auto mb-3">
+                    {{ employee.full_name[0].upper() }}
+                </div>
+                {% endif %}
+                <h4 class="mb-1">{{ employee.full_name }}</h4>
+                <p class="text-info mb-0 font-monospace">{{ employee.employee_id }}</p>
+                <span class="badge bg-tertiary border-secondary text-muted mt-2">{{ employee.position }}</span>
+            </div>
+
+            <hr class="border-secondary my-3">
+
+            <div class="d-flex flex-column gap-3" style="font-size: 0.95rem;">
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Department</span>
+                    <span class="fw-semibold text-white">{{ employee.department }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Hire Date</span>
+                    <span class="fw-semibold text-white">{{ employee.hire_date.strftime('%Y-%m-%d') }}</span>
+                </div>
+                <div class="d-flex flex-column">
+                    <span class="text-muted mb-1">Email Address</span>
+                    <span class="fw-semibold text-white text-truncate"><i class="bi bi-envelope text-muted"></i> {{ employee.email }}</span>
+                </div>
+                <div class="d-flex flex-column">
+                    <span class="text-muted mb-1">Phone Number</span>
+                    <span class="fw-semibold text-white"><i class="bi bi-telephone text-muted"></i> {{ employee.phone }}</span>
+                </div>
+            </div>
+
+            <hr class="border-secondary my-3">
+
+            <div class="bg-tertiary p-3 rounded-3 text-muted" style="font-size: 0.8rem;">
+                <div class="mb-1"><strong>Added By:</strong> {{ employee.creator.username }}</div>
+                <div><strong>System Created:</strong> {{ employee.created_at|datetimeformat }}</div>
+            </div>
+
+            <div class="mt-4 d-flex gap-2">
+                <a href="{{ url_for('main.employees') }}" class="btn btn-secondary flex-grow-1">
+                    <i class="bi bi-arrow-left"></i> Back
+                </a>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('main.edit_employee', id=employee.id) }}" class="btn btn-primary flex-grow-1">
+                    <i class="bi bi-pencil-square"></i> Edit
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Files Column -->
+    <div class="col-lg-8">
+        <div class="card bg-secondary border-secondary text-white rounded-4 p-4 shadow-sm h-100">
+            <h5 class="mb-3 font-monospace">Linked Files & Images</h5>
+            
+            {% if active_files %}
+            <div class="gallery-grid">
+                {% for file in active_files %}
+                <div class="gallery-card">
+                    <div class="gallery-card-preview">
+                        {% if file.file_type.startswith('image/') %}
+                        <img src="{{ url_for('main.uploaded_file', filename=file.filename) }}" class="gallery-card-img" alt="{{ file.original_name }}">
+                        {% else %}
+                        <i class="bi {% if 'pdf' in file.file_type %}bi-filetype-pdf text-danger{% elif 'word' in file.file_type or 'doc' in file.file_type %}bi-filetype-docx text-primary{% elif 'sheet' in file.file_type or 'excel' in file.file_type or 'xls' in file.file_type %}bi-filetype-xlsx text-success{% else %}bi-file-earmark-text{% endif %} gallery-card-icon"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="gallery-card-body">
+                        <div class="gallery-card-title text-white" title="{{ file.original_name }}">{{ file.original_name }}</div>
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <span class="text-muted small">{{ file.size|filesize }}</span>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('main.file_detail', id=file.id) }}" class="btn btn-sm btn-secondary p-1 px-2" title="Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('main.download_file', id=file.id) }}" class="btn btn-sm btn-outline-cyan p-1 px-2" title="Download">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </div>
+                        </div>
+                        
+                        {% if file.tags %}
+                        <div class="mt-2 d-flex flex-wrap gap-1">
+                            {% for tag in file.tags.split(',') %}
+                            <span class="gallery-card-tag">{{ tag.strip() }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 my-auto text-muted">
+                <i class="bi bi-file-earmark-arrow-up text-muted" style="font-size: 3.5rem;"></i>
+                <h5 class="mt-3">No Files Associated</h5>
+                <p class="text-muted" style="font-size: 0.9rem;">There are no active uploaded files linked to {{ employee.full_name }}.</p>
+                <a href="{{ url_for('main.files') }}" class="btn btn-outline-cyan mt-2">
+                    <i class="bi bi-upload"></i> Upload a File
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

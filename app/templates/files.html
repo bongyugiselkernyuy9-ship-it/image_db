@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Files & Images{% endblock %}
+{% block page_title %}Document Center / Files & Images{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- File Upload Section -->
+    <div class="col-lg-5">
+        <div class="card bg-secondary border-secondary text-white rounded-4 p-4 shadow-sm h-100">
+            <h5 class="mb-3 font-monospace"><i class="bi bi-cloud-arrow-up-fill text-primary"></i> Upload Document / Image</h5>
+            
+            {% if employees_exist %}
+            <form method="POST" action="{{ url_for('main.upload_file') }}" enctype="multipart/form-data">
+                {{ upload_form.hidden_tag() }}
+                
+                <div class="mb-3">
+                    <div class="file-dropzone">
+                        <i class="file-dropzone-icon bi bi-cloud-arrow-up-fill"></i>
+                        <p class="mb-0 text-muted">Drag & drop file here or click to browse</p>
+                        <span class="text-muted small" style="font-size: 0.75rem;">Supported: JPG, PNG, PDF, DOC, DOCX, XLS, XLSX (Max 2GB)</span>
+                        {{ upload_form.file(class="d-none") }}
+                    </div>
+                    {% for error in upload_form.file.errors %}
+                        <div class="text-danger mt-1 small">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                
+                <div class="mb-3">
+                    {{ upload_form.employee_id.label(class="form-label") }}
+                    {{ upload_form.employee_id(class="form-select") }}
+                    <div class="form-text text-muted" style="font-size: 0.8rem;">Every document must be linked to an employee record.</div>
+                    {% for error in upload_form.employee_id.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                
+                <div class="mb-4">
+                    {{ upload_form.tags.label(class="form-label") }}
+                    {{ upload_form.tags(class="form-control", placeholder="e.g. contract, resume, invoice") }}
+                    <div class="form-text text-muted" style="font-size: 0.8rem;">Comma-separated values for grouping.</div>
+                    {% for error in upload_form.tags.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                
+                {{ upload_form.submit(class="btn btn-primary w-100 py-2") }}
+            </form>
+            {% else %}
+            <div class="text-center py-5 my-auto text-muted">
+                <i class="bi bi-person-exclamation text-warning" style="font-size: 3rem;"></i>
+                <h6 class="mt-3 text-white">No Employees Registered</h6>
+                <p class="small text-muted">You must create at least one employee record before uploading and linking files.</p>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('main.add_employee') }}" class="btn btn-primary btn-sm mt-2">Create Employee</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Document Library Section -->
+    <div class="col-lg-7">
+        <div class="card bg-secondary border-secondary text-white rounded-4 p-4 shadow-sm h-100">
+            <h5 class="mb-3 font-monospace"><i class="bi bi-folder-fill text-cyan"></i> Document Library</h5>
+            
+            {% if files %}
+            <div class="gallery-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+                {% for file in files %}
+                <div class="gallery-card">
+                    <div class="gallery-card-preview" style="height: 120px;">
+                        {% if file.file_type.startswith('image/') %}
+                        <img src="{{ url_for('main.uploaded_file', filename=file.filename) }}" class="gallery-card-img" alt="{{ file.original_name }}">
+                        {% else %}
+                        <i class="bi {% if 'pdf' in file.file_type %}bi-filetype-pdf text-danger{% elif 'word' in file.file_type or 'doc' in file.file_type %}bi-filetype-docx text-primary{% elif 'sheet' in file.file_type or 'excel' in file.file_type or 'xls' in file.file_type %}bi-filetype-xlsx text-success{% else %}bi-file-earmark-text{% endif %} gallery-card-icon" style="font-size: 3rem;"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="gallery-card-body p-2">
+                        <div class="gallery-card-title text-white small" style="font-size: 0.85rem;" title="{{ file.original_name }}">{{ file.original_name }}</div>
+                        <div class="text-muted small mb-1" style="font-size: 0.75rem;">Linked: {{ file.employee.full_name }}</div>
+                        
+                        {# Show an "owner" badge if the current user uploaded this file #}
+                        {% if file.uploader_id == current_user.id %}
+                        <div class="mb-1">
+                            <span class="badge bg-primary bg-opacity-25 text-primary" style="font-size: 0.65rem;">
+                                <i class="bi bi-person-check"></i> Your Upload
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <span class="text-muted small" style="font-size: 0.75rem;">{{ file.size|filesize }}</span>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('main.file_detail', id=file.id) }}" class="btn btn-sm btn-secondary p-0 px-2" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('main.download_file', id=file.id) }}" class="btn btn-sm btn-outline-cyan p-0 px-2" title="Download">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                {# DELETE BUTTON: Only shown if the user is the uploader AND has viewed the file #}
+                                {% if file.uploader_id == current_user.id and file.id in viewed_file_ids %}
+                                <button type="button" class="btn btn-sm btn-danger p-0 px-2" 
+                                        title="Delete" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#deleteModal{{ file.id }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5 my-auto text-muted">
+                <i class="bi bi-folder2-open" style="font-size: 3rem;"></i>
+                <p class="mt-2">No files uploaded to the library yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# Delete Confirmation Modals – one per deletable file #}
+{% for file in files %}
+{% if file.uploader_id == current_user.id and file.id in viewed_file_ids %}
+<div class="modal fade" id="deleteModal{{ file.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ file.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-secondary border-secondary text-white">
+            <div class="modal-header border-bottom border-dark">
+                <h5 class="modal-title font-monospace text-danger" id="deleteModalLabel{{ file.id }}">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Move to Trash
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-muted">
+                Are you sure you want to move <strong class="text-white">{{ file.original_name }}</strong> to the trash?
+                <br><br>
+                <small>The file will be hidden from all listings but can be restored by an administrator.</small>
+            </div>
+            <div class="modal-footer border-top border-dark">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('main.delete_file', id=file.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Move to Trash
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

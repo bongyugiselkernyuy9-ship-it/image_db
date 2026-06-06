@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Search Center{% endblock %}
+{% block page_title %}Security / Advanced Search{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Search Inputs Column -->
+    <div class="col-lg-4">
+        <div class="card bg-secondary border-secondary text-white rounded-4 p-4 shadow-sm">
+            <h5 class="mb-3 font-monospace"><i class="bi bi-funnel-fill text-primary"></i> Filter Documents</h5>
+            
+            <form method="GET" action="{{ url_for('main.search') }}">
+                <div class="mb-3">
+                    {{ form.query.label(class="form-label") }}
+                    {{ form.query(class="form-control", placeholder="Search filename or employee name") }}
+                </div>
+                
+                <div class="mb-3">
+                    {{ form.file_type.label(class="form-label") }}
+                    {{ form.file_type(class="form-select") }}
+                </div>
+                
+                <div class="mb-3">
+                    {{ form.tags.label(class="form-label") }}
+                    {{ form.tags(class="form-control", placeholder="e.g. invoice, resume") }}
+                </div>
+                
+                <div class="mb-3">
+                    {{ form.start_date.label(class="form-label") }}
+                    {{ form.start_date(class="form-control", type="date") }}
+                </div>
+                
+                <div class="mb-4">
+                    {{ form.end_date.label(class="form-label") }}
+                    {{ form.end_date(class="form-control", type="date") }}
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100 py-2">
+                    <i class="bi bi-search"></i> Apply Filters
+                </button>
+                <a href="{{ url_for('main.search') }}" class="btn btn-secondary w-100 mt-2 py-2">Reset Filters</a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Search Results Column -->
+    <div class="col-lg-8">
+        <div class="card bg-secondary border-secondary text-white rounded-4 p-4 shadow-sm h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0 font-monospace">Search Index</h5>
+                <span class="text-muted small">Found {{ results|length }} records</span>
+            </div>
+
+            {% if results %}
+            <div class="table-responsive-custom">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Linked Employee</th>
+                            <th>Upload Date</th>
+                            <th>Size</th>
+                            <th>Tags</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in results %}
+                        <tr>
+                            <td class="font-monospace text-truncate" style="max-width: 160px;" title="{{ file.original_name }}">
+                                <i class="bi {% if file.file_type.startswith('image/') %}bi-image text-cyan{% else %}bi-file-earmark-text text-indigo{% endif %} me-2"></i>
+                                {{ file.original_name }}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('main.employee_detail', id=file.employee.id) }}" class="text-info text-decoration-none">
+                                    {{ file.employee.full_name }}
+                                </a>
+                            </td>
+                            <td class="text-muted" style="font-size: 0.85rem;">{{ file.upload_date|datetimeformat }}</td>
+                            <td class="text-muted">{{ file.size|filesize }}</td>
+                            <td>
+                                {% if file.tags %}
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for tag in file.tags.split(',') %}
+                                    <span class="badge bg-tertiary text-muted" style="font-size: 0.7rem;">{{ tag.strip() }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('main.file_detail', id=file.id) }}" class="btn btn-sm btn-secondary p-1 px-2" title="Details">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('main.download_file', id=file.id) }}" class="btn btn-sm btn-outline-cyan p-1 px-2" title="Download">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 my-auto text-muted">
+                <i class="bi bi-search-heart" style="font-size: 3rem;"></i>
+                <p class="mt-3">No matching files found. Adjust search terms or tags.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

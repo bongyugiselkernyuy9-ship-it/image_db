@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard / Portal Overview{% endblock %}
+
+{% block content %}
+{# Hidden quick-upload form for the dashboard "Upload New File" button #}
+{% if employees_exist is defined and employees_exist %}
+<form id="quick-upload-form" method="POST" action="{{ url_for('main.upload_file') }}" enctype="multipart/form-data" class="d-none">
+    {{ upload_form.hidden_tag() }}
+    <input type="file" id="quick-upload-input" name="file" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx">
+    <input type="hidden" name="employee_id" id="quick-upload-employee-id" value="{{ first_employee_id }}">
+    <input type="hidden" name="tags" value="">
+</form>
+{% endif %}
+<!-- Grid of Key Metrics -->
+<div class="dashboard-grid">
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <span>ACTIVE EMPLOYEES</span>
+            <i class="bi bi-people stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">{{ employee_count }}</div>
+        <div class="text-muted" style="font-size: 0.85rem;">Registered profiles in system</div>
+    </div>
+    
+    <div class="stat-card cyan">
+        <div class="stat-card-header">
+            <span>TOTAL DOCUMENTS</span>
+            <i class="bi bi-file-earmark-text stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">{{ file_count }}</div>
+        <div class="text-muted" style="font-size: 0.85rem;">Images and files uploaded</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <span>STORAGE UTILIZATION</span>
+            <i class="bi bi-hdd-network stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">{{ total_storage|filesize }}</div>
+        <div class="text-muted" style="font-size: 0.85rem;">Total physical file size on disk</div>
+    </div>
+    
+    <div class="stat-card cyan">
+        <div class="stat-card-header">
+            <span>AUDIT EVENTS</span>
+            <i class="bi bi-shield-check stat-card-icon"></i>
+        </div>
+        <div class="stat-card-value">{{ log_count }}</div>
+        <div class="text-muted" style="font-size: 0.85rem;">Actions logged in audit database</div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Quick Actions Panel -->
+    <div class="col-lg-4">
+        <div class="card bg-secondary border-secondary text-white h-100 rounded-4 p-4 shadow-sm">
+            <h5 class="mb-3 font-monospace">Quick Actions</h5>
+            <div class="d-flex flex-column gap-3">
+                {% if employees_exist is defined and employees_exist %}
+                <button type="button" id="btn-upload-trigger" class="btn btn-primary text-start py-3 d-flex align-items-center justify-content-between w-100" onclick="document.getElementById('quick-upload-input').click()">
+                    <span><i class="bi bi-cloud-upload-fill me-2"></i> Upload New File</span>
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+                {% else %}
+                <a href="{{ url_for('main.files') }}" class="btn btn-primary text-start py-3 d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-cloud-upload-fill me-2"></i> Upload New File</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+                {% endif %}
+                
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('main.add_employee') }}" class="btn btn-secondary text-start py-3 d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-person-plus-fill me-2"></i> Create Employee Record</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+                {% endif %}
+                
+                <a href="{{ url_for('main.search') }}" class="btn btn-secondary text-start py-3 d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-search me-2"></i> Advanced Search</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+            
+            <div class="mt-4 p-3 bg-tertiary border-secondary rounded-3 text-muted" style="font-size: 0.85rem;">
+                <h6 class="text-white mb-2"><i class="bi bi-info-circle"></i> Permissions Memo</h6>
+                {% if current_user.is_admin %}
+                You are logged in as an <strong>Administrator</strong>. You can create/edit employee records, review audit logs, and manage the trash (restore or permanently delete files). To delete a file you uploaded, you must view it first.
+                {% else %}
+                You are logged in as an <strong>Employee</strong>. You can view, search, upload, and download files. You may delete files you uploaded after viewing them first. Deleted files go to trash and can be restored by an admin.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Uploads Table -->
+    <div class="col-lg-8">
+        <div class="card bg-secondary border-secondary text-white h-100 rounded-4 p-4 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0 font-monospace">Recent Uploads</h5>
+                <a href="{{ url_for('main.files') }}" class="btn btn-sm btn-outline-secondary">View All</a>
+            </div>
+            
+            {% if recent_files %}
+            <div class="table-responsive-custom">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Linked Employee</th>
+                            <th>Date</th>
+                            <th>Size</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in recent_files %}
+                        <tr>
+                            <td class="font-monospace text-truncate" style="max-width: 180px;">
+                                <i class="bi {% if file.file_type.startswith('image/') %}bi-image text-cyan{% else %}bi-file-earmark-text text-indigo{% endif %} me-2"></i>
+                                {{ file.original_name }}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('main.employee_detail', id=file.employee.id) }}" class="text-info text-decoration-none">
+                                    {{ file.employee.full_name }}
+                                </a>
+                            </td>
+                            <td class="text-muted" style="font-size: 0.85rem;">{{ file.upload_date|datetimeformat }}</td>
+                            <td class="text-muted">{{ file.size|filesize }}</td>
+                            <td>
+                                <a href="{{ url_for('main.file_detail', id=file.id) }}" class="btn btn-sm btn-secondary p-1 px-2" title="View details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('main.download_file', id=file.id) }}" class="btn btn-sm btn-secondary p-1 px-2" title="Download">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-folder2-open style-icon" style="font-size: 3rem;"></i>
+                <p class="mt-2">No documents found. Drag and drop files to get started.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if current_user.is_admin and recent_logs %}
+<!-- Recent Security Log (Admins Only) -->
+<div class="row">
+    <div class="col-12">
+        <div class="card bg-secondary border-secondary text-white rounded-4 p-4 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0 font-monospace text-warning"><i class="bi bi-shield-lock-fill"></i> Recent System Activity</h5>
+                <a href="{{ url_for('main.audit_logs') }}" class="btn btn-sm btn-outline-warning">Security Logs</a>
+            </div>
+            
+            <div class="table-responsive-custom">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Action</th>
+                            <th>Operator</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in recent_logs %}
+                        <tr>
+                            <td class="text-muted" style="font-size: 0.85rem;">{{ log.timestamp|datetimeformat }}</td>
+                            <td>
+                                <span class="badge text-white {% if 'DELETE' in log.action or 'FAIL' in log.action %}bg-danger{% elif 'EDIT' in log.action or 'CREATE' in log.action %}bg-warning text-dark{% else %}bg-primary{% endif %}">
+                                    {{ log.action }}
+                                </span>
+                            </td>
+                            <td><i class="bi bi-person-fill text-muted"></i> {{ log.username }}</td>
+                            <td class="text-muted text-truncate" style="max-width: 400px;">{{ log.details }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% block scripts %}
+<script>
+(function() {
+    var input = document.getElementById('quick-upload-input');
+    if (!input) return;
+    input.addEventListener('change', function() {
+        if (this.files && this.files.length > 0) {
+            // Show a brief loading indicator on the button
+            var btn = document.getElementById('btn-upload-trigger');
+            if (btn) {
+                btn.innerHTML = '<span><i class="bi bi-arrow-repeat me-2" style="animation: spin 1s linear infinite; display:inline-block;"></i> Uploading...</span>';
+                btn.disabled = true;
+            }
+            document.getElementById('quick-upload-form').submit();
+        }
+    });
+})();
+</script>
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+{% endblock %}

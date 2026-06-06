@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}File Detail - {{ file.original_name }}{% endblock %}
+{% block page_title %}Document Center / File Viewer{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Metadata & Details Column -->
+    <div class="col-lg-5">
+        <div class="card bg-secondary border-secondary text-white rounded-4 p-4 shadow-sm h-100">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div class="p-3 bg-primary bg-opacity-10 text-primary rounded-3">
+                    <i class="bi bi-file-earmark-info-fill" style="font-size: 1.5rem;"></i>
+                </div>
+                <div class="overflow-hidden">
+                    <h4 class="mb-0 text-truncate" title="{{ file.original_name }}">{{ file.original_name }}</h4>
+                    <p class="text-muted mb-0 font-monospace small">ID: {{ file.id }}</p>
+                </div>
+            </div>
+
+            <hr class="border-secondary my-3">
+
+            <div class="d-flex flex-column gap-3" style="font-size: 0.95rem;">
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Storage Filename</span>
+                    <span class="fw-semibold text-white font-monospace text-truncate ms-2" style="max-width: 180px;" title="{{ file.filename }}">
+                        {{ file.filename }}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">File Size</span>
+                    <span class="fw-semibold text-white">{{ file.size|filesize }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">MIME Type</span>
+                    <span class="fw-semibold text-white font-monospace">{{ file.file_type }}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Upload Date</span>
+                    <span class="fw-semibold text-white">{{ file.upload_date|datetimeformat }}</span>
+                </div>
+                <hr class="border-secondary my-1">
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Linked Employee</span>
+                    <a href="{{ url_for('main.employee_detail', id=file.employee.id) }}" class="text-info text-decoration-none fw-semibold">
+                        {{ file.employee.full_name }} ({{ file.employee.employee_id }})
+                    </a>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Uploaded By</span>
+                    <span class="fw-semibold text-white"><i class="bi bi-person-fill text-muted"></i> {{ file.uploader.username }}</span>
+                </div>
+                
+                {# View status indicator #}
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted">View Status</span>
+                    <span class="badge bg-success bg-opacity-25 text-success">
+                        <i class="bi bi-check-circle-fill"></i> Viewed
+                    </span>
+                </div>
+                
+                {% if file.tags %}
+                <div class="d-flex flex-column">
+                    <span class="text-muted mb-2">Metadata Tags</span>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for tag in file.tags.split(',') %}
+                        <span class="gallery-card-tag">{{ tag.strip() }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mt-auto pt-4">
+                <div class="d-flex flex-column gap-2">
+                    <a href="{{ url_for('main.download_file', id=file.id) }}" class="btn btn-primary w-100 py-2">
+                        <i class="bi bi-download"></i> Download File
+                    </a>
+                    
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('main.files') }}" class="btn btn-secondary flex-grow-1">
+                            <i class="bi bi-arrow-left"></i> Back to Library
+                        </a>
+                        {# DELETE BUTTON: Only shown if can_delete() returned True #}
+                        {# Requires: user is the uploader AND has viewed the file #}
+                        {% if can_delete %}
+                        <button type="button" class="btn btn-danger flex-grow-1" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Column -->
+    <div class="col-lg-7">
+        <div class="card bg-secondary border-secondary text-white rounded-4 p-4 shadow-sm h-100 d-flex flex-column">
+            <h5 class="mb-3 font-monospace">File Preview</h5>
+            
+            <div class="flex-grow-1 d-flex align-items-center justify-content-center bg-tertiary rounded-3 border border-secondary p-3" style="min-height: 300px;">
+                {% if file.file_type.startswith('image/') %}
+                <img src="{{ url_for('main.uploaded_file', filename=file.filename) }}" alt="{{ file.original_name }}" class="img-fluid rounded shadow-sm" style="max-height: 500px; object-fit: contain;">
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi {% if 'pdf' in file.file_type %}bi-filetype-pdf text-danger{% elif 'word' in file.file_type or 'doc' in file.file_type %}bi-filetype-docx text-primary{% elif 'sheet' in file.file_type or 'excel' in file.file_type or 'xls' in file.file_type %}bi-filetype-xlsx text-success{% else %}bi-file-earmark-text{% endif %}" style="font-size: 6rem;"></i>
+                    <h5 class="mt-3 text-white">Preview Not Available</h5>
+                    <p class="text-muted small">System does not support in-browser previews for this document type ({{ file.file_type }}).</p>
+                    <a href="{{ url_for('main.download_file', id=file.id) }}" class="btn btn-outline-cyan btn-sm">
+                        <i class="bi bi-download"></i> Download to View
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if can_delete %}
+<!-- Delete Confirmation Modal (Soft Delete / Move to Trash) -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-secondary border-secondary text-white">
+            <div class="modal-header border-bottom border-dark">
+                <h5 class="modal-title font-monospace text-danger" id="deleteModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Move to Trash
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-muted">
+                Are you sure you want to move <strong class="text-white">{{ file.original_name }}</strong> to the trash? 
+                <br><br>
+                <small>The file will be hidden from all listings but can be restored by an administrator. This action is recorded in the audit log.</small>
+            </div>
+            <div class="modal-footer border-top border-dark">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('main.delete_file', id=file.id) }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Move to Trash
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
